@@ -1,0 +1,13 @@
+{
+  "name": "mini-gmail",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Production-ready custom email web app with React, Express, MongoDB, and Resend.",
+  "scripts": {
+    "install:all": "npm --prefix backend install && npm --prefix frontend install",
+    "dev:backend": "npm run dev --prefix backend",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "start:backend": "npm start --prefix backend",
+    "build:frontend": "npm run build --prefix frontend"
+  }
+}
