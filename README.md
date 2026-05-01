@@ -6,11 +6,12 @@ A production-ready mini Gmail-style email application using React, Vite, Tailwin
 
 - Registers and logs in users with JWT auth in an httpOnly cookie.
 - Creates domain mailboxes such as `user@mydomain.com`.
+- Generates multiple email IDs under one main account.
 - Sends mail through Resend and stores sent messages in MongoDB.
 - Receives mail through `POST /api/webhook/inbound`.
-- Routes any `*@mydomain.com` inbound address to a matching registered user.
+- Routes any owned `*@mydomain.com` inbound address to the matching account.
 - Stores inbox and sent mail in MongoDB without IMAP, POP3, or external mailbox providers.
-- Includes inbox, sent, compose, search, pagination, message detail, and reply flow.
+- Includes inbox switching, generated IDs, sent, compose, search, pagination, message detail, and reply flow.
 
 ## Project Structure
 
@@ -269,3 +270,4 @@ Response:
 - Set `COOKIE_SECURE=true` and `NODE_ENV=production` in production.
 - Use the deployed frontend URL for `FRONTEND_URL`.
 - Use a managed MongoDB connection string for `MONGODB_URI`.
+- See `DEPLOYMENT.md` for the production checklist, Resend webhook URL, and smoke test.
