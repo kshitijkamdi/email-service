@@ -1,4 +1,4 @@
-import { Edit3, Inbox, LogOut, Mail, Send } from 'lucide-react';
+import { Edit3, Inbox, LogOut, Mail, Send, Users } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 
@@ -39,6 +39,11 @@ const Sidebar = () => {
         <NavLink to="/compose" className={linkClass}>
           <Edit3 size={18} /> Compose
         </NavLink>
+        {user?.isAdmin ? (
+          <NavLink to="/mailboxes" className={linkClass}>
+            <Users size={18} /> Mailboxes
+          </NavLink>
+        ) : null}
       </nav>
 
       <button

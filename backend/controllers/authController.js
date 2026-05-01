@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import { isAdminUser } from '../utils/admin.js';
 
 const cookieOptions = () => ({
   httpOnly: true,
@@ -14,15 +15,18 @@ const signToken = (userId) =>
     expiresIn: process.env.JWT_EXPIRES_IN || '7d'
   });
 
-const sendAuthResponse = (res, statusCode, user) => {
+const userPayload = async (user) => ({
+  id: user._id,
+  email: user.email,
+  createdAt: user.createdAt,
+  isAdmin: await isAdminUser(user)
+});
+
+const sendAuthResponse = async (res, statusCode, user) => {
   const token = signToken(user._id);
   res.cookie('token', token, cookieOptions());
   res.status(statusCode).json({
-    user: {
-      id: user._id,
-      email: user.email,
-      createdAt: user.createdAt
-    }
+    user: await userPayload(user)
   });
 };
 
@@ -51,7 +55,7 @@ export const register = async (req, res, next) => {
     const password = await bcrypt.hash(req.body.password, 12);
     const user = await User.create({ email, password });
 
-    sendAuthResponse(res, 201, user);
+    await sendAuthResponse(res, 201, user);
   } catch (error) {
     next(error);
   }
@@ -71,20 +75,20 @@ export const login = async (req, res, next) => {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
 
-    sendAuthResponse(res, 200, user);
+    await sendAuthResponse(res, 200, user);
   } catch (error) {
     next(error);
   }
 };
 
-export const getMe = (req, res) => {
-  res.status(200).json({
-    user: {
-      id: req.user._id,
-      email: req.user.email,
-      createdAt: req.user.createdAt
-    }
-  });
+export const getMe = async (req, res, next) => {
+  try {
+    res.status(200).json({
+      user: await userPayload(req.user)
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
 export const logout = (req, res) => {

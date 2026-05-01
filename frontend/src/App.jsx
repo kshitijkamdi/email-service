@@ -5,8 +5,16 @@ import Compose from './pages/Compose.jsx';
 import EmailDetail from './pages/EmailDetail.jsx';
 import Inbox from './pages/Inbox.jsx';
 import Login from './pages/Login.jsx';
+import Mailboxes from './pages/Mailboxes.jsx';
 import Register from './pages/Register.jsx';
 import Sent from './pages/Sent.jsx';
+import Settings from './pages/Settings.jsx';
+import { useAuth } from './context/AuthContext.jsx';
+
+const HomeRedirect = () => {
+  const { user } = useAuth();
+  return <Navigate to={user?.isAdmin ? '/mailboxes' : '/inbox'} replace />;
+};
 
 const App = () => (
   <Routes>
@@ -19,10 +27,12 @@ const App = () => (
         </ProtectedRoute>
       }
     >
-      <Route index element={<Navigate to="/inbox" replace />} />
+      <Route index element={<HomeRedirect />} />
       <Route path="/inbox" element={<Inbox />} />
       <Route path="/sent" element={<Sent />} />
       <Route path="/compose" element={<Compose />} />
+      <Route path="/settings" element={<Settings />} />
+      <Route path="/mailboxes" element={<Mailboxes />} />
       <Route path="/email/:id" element={<EmailDetail />} />
     </Route>
     <Route path="*" element={<Navigate to="/inbox" replace />} />

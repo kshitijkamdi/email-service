@@ -17,8 +17,8 @@ const Login = () => {
     setError('');
 
     try {
-      await login(form);
-      navigate(location.state?.from?.pathname || '/inbox', { replace: true });
+      const user = await login(form);
+      navigate(location.state?.from?.pathname || (user.isAdmin ? '/mailboxes' : '/inbox'), { replace: true });
     } catch (err) {
       setError(err.message);
     } finally {

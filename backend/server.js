@@ -6,6 +6,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import connectDB from './config/db.js';
+import adminRoutes from './routes/adminRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import emailRoutes from './routes/emailRoutes.js';
 import webhookRoutes from './routes/webhookRoutes.js';
@@ -53,6 +54,7 @@ const authLimiter = rateLimit({
 
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/email', apiLimiter, emailRoutes);
+app.use('/api/admin', apiLimiter, adminRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

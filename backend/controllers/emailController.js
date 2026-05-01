@@ -1,5 +1,6 @@
 import sanitizeHtml from 'sanitize-html';
 import Email from '../models/Email.js';
+import { syncReceivedEmailsForUser } from '../services/inboundEmailService.js';
 import { sendEmail as sendViaResend } from '../services/resendService.js';
 
 const sanitizeBody = (html) =>
@@ -85,6 +86,15 @@ export const sendEmail = async (req, res, next) => {
 
 export const getInbox = (req, res, next) => {
   listEmails({ req, res, type: 'inbox' }).catch(next);
+};
+
+export const syncReceived = async (req, res, next) => {
+  try {
+    const result = await syncReceivedEmailsForUser({ user: req.user });
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
 };
 
 export const getSent = (req, res, next) => {

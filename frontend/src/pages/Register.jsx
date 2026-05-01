@@ -16,8 +16,8 @@ const Register = () => {
     setError('');
 
     try {
-      await register(form);
-      navigate('/inbox', { replace: true });
+      const user = await register(form);
+      navigate(user.isAdmin ? '/mailboxes' : '/inbox', { replace: true });
     } catch (err) {
       setError(err.message);
     } finally {

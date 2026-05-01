@@ -57,6 +57,20 @@ export const retrieveReceivedEmail = async (emailId) => {
   return data;
 };
 
+export const listReceivedEmails = async (options = {}) => {
+  const resend = getResendClient();
+  const { data, error } = await resend.emails.receiving.list(options);
+
+  if (error) {
+    const serviceError = new Error(error.message || 'Failed to list received emails from Resend');
+    serviceError.statusCode = 502;
+    serviceError.details = error;
+    throw serviceError;
+  }
+
+  return data;
+};
+
 export const verifyWebhook = ({ payload, headers }) => {
   if (!process.env.RESEND_WEBHOOK_SECRET) {
     return JSON.parse(payload);
