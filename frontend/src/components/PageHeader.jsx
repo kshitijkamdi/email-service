@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 
-const PageHeader = ({ title, count, search, onSearchChange, actions, showAccountMenu = true, addressSwitcher }) => {
+const PageHeader = ({ title, count, search, onSearchChange, actions, actionsPlacement = 'afterSearch', showAccountMenu = true, addressSwitcher }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [accountOpen, setAccountOpen] = useState(false);
@@ -124,6 +124,7 @@ const PageHeader = ({ title, count, search, onSearchChange, actions, showAccount
         </div>
 
         <div className="flex items-center gap-3">
+          {actionsPlacement === 'beforeSearch' ? actions : null}
           {onSearchChange ? (
             <label className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-md bg-white px-3 text-sm ring-1 ring-line lg:w-80">
               <Search size={16} className="shrink-0 text-slate-400" />
@@ -135,7 +136,7 @@ const PageHeader = ({ title, count, search, onSearchChange, actions, showAccount
               />
             </label>
           ) : null}
-          {actions}
+          {actionsPlacement === 'afterSearch' ? actions : null}
         </div>
       </div>
     </header>

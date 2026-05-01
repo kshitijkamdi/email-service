@@ -78,7 +78,9 @@ export const register = async (req, res, next) => {
 export const login = async (req, res, next) => {
   try {
     const email = normalizeEmail(req.body.email);
-    const user = await User.findOne({ email }).select('+password email createdAt');
+    const directUser = await User.findOne({ email }).select('+password email createdAt');
+    const address = directUser ? null : await EmailAddress.findOne({ email });
+    const user = directUser || (address ? await User.findById(address.owner).select('+password email createdAt') : null);
 
     if (!user) {
       return res.status(401).json({ message: 'Invalid email or password' });

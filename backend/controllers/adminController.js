@@ -1,6 +1,7 @@
 import Email from '../models/Email.js';
 import EmailAddress from '../models/EmailAddress.js';
 import User from '../models/User.js';
+import { ensurePrimaryEmailAddress } from '../services/emailAddressService.js';
 import { isAdminUser } from '../utils/admin.js';
 
 const normalizeSearch = (value) => String(value || '').trim().toLowerCase();
@@ -12,20 +13,30 @@ export const listUsers = async (req, res, next) => {
     const q = normalizeSearch(req.query.q);
     const filter = q ? { email: { $regex: q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' } } : {};
 
-    const [users, total] = await Promise.all([
-      User.find(filter).select('_id email createdAt').sort({ createdAt: 1, _id: 1 }).skip((page - 1) * limit).limit(limit),
-      User.countDocuments(filter)
+    const allUsers = await User.find({}).select('_id email createdAt');
+    await Promise.all(allUsers.map((user) => ensurePrimaryEmailAddress(user)));
+
+    const [addresses, total] = await Promise.all([
+      EmailAddress.find(filter)
+        .populate('owner', '_id email createdAt')
+        .sort({ createdAt: 1, _id: 1 })
+        .skip((page - 1) * limit)
+        .limit(limit),
+      EmailAddress.countDocuments(filter)
     ]);
 
-    const adminChecks = await Promise.all(users.map((user) => isAdminUser(user)));
+    const adminChecks = await Promise.all(addresses.map((address) => isAdminUser(address.owner)));
 
     res.status(200).json({
-      users: users.map((user, index) => ({
-        id: user._id,
-        email: user.email,
-        createdAt: user.createdAt,
+      users: addresses.map((address, index) => ({
+        id: address._id,
+        email: address.email,
+        createdAt: address.createdAt,
         isAdmin: adminChecks[index],
-        isCurrentUser: String(user._id) === String(req.user._id)
+        isPrimary: address.isPrimary,
+        ownerEmail: address.owner?.email,
+        ownerId: address.owner?._id,
+        isCurrentUser: address.isPrimary && String(address.owner?._id) === String(req.user._id)
       })),
       pagination: {
         page,
@@ -41,29 +52,50 @@ export const listUsers = async (req, res, next) => {
 
 export const deleteUser = async (req, res, next) => {
   try {
-    if (String(req.params.id) === String(req.user._id)) {
-      return res.status(400).json({ message: 'You cannot delete your own admin mailbox while signed in' });
+    const address = await EmailAddress.findById(req.params.id);
+
+    if (!address) {
+      return res.status(404).json({ message: 'Email ID not found' });
     }
 
-    const user = await User.findById(req.params.id).select('_id email');
+    if (address.isPrimary) {
+      if (String(address.owner) === String(req.user._id)) {
+        return res.status(400).json({ message: 'You cannot delete your own primary email ID while signed in' });
+      }
 
-    if (!user) {
-      return res.status(404).json({ message: 'Mailbox not found' });
+      const user = await User.findById(address.owner).select('_id email');
+      if (!user) {
+        return res.status(404).json({ message: 'Mailbox owner not found' });
+      }
+
+      const ownedAddresses = await EmailAddress.find({ owner: user._id }).select('email');
+      const emails = [...new Set([user.email, ...ownedAddresses.map((item) => item.email)])];
+      const [messages] = await Promise.all([
+        Email.deleteMany({ $or: [{ to: { $in: emails } }, { from: { $in: emails } }] }),
+        EmailAddress.deleteMany({ owner: user._id }),
+        User.deleteOne({ _id: user._id })
+      ]);
+
+      return res.status(200).json({
+        message: 'Mailbox deleted',
+        deleted: {
+          id: address._id,
+          email: user.email,
+          messages: messages.deletedCount
+        }
+      });
     }
 
-    const ownedAddresses = await EmailAddress.find({ owner: user._id }).select('email');
-    const emails = [...new Set([user.email, ...ownedAddresses.map((address) => address.email)])];
     const [messages] = await Promise.all([
-      Email.deleteMany({ $or: [{ to: { $in: emails } }, { from: { $in: emails } }] }),
-      EmailAddress.deleteMany({ owner: user._id }),
-      User.deleteOne({ _id: user._id })
+      Email.deleteMany({ $or: [{ to: address.email }, { from: address.email }] }),
+      EmailAddress.deleteOne({ _id: address._id })
     ]);
 
     res.status(200).json({
-      message: 'Mailbox deleted',
+      message: 'Email ID deleted',
       deleted: {
-        id: user._id,
-        email: user.email,
+        id: address._id,
+        email: address.email,
         messages: messages.deletedCount
       }
     });
