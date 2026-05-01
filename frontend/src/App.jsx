@@ -9,12 +9,8 @@ import Mailboxes from './pages/Mailboxes.jsx';
 import Register from './pages/Register.jsx';
 import Sent from './pages/Sent.jsx';
 import Settings from './pages/Settings.jsx';
-import { useAuth } from './context/AuthContext.jsx';
 
-const HomeRedirect = () => {
-  const { user } = useAuth();
-  return <Navigate to={user?.isAdmin ? '/mailboxes' : '/inbox'} replace />;
-};
+const HomeRedirect = () => <Navigate to="/inbox" replace />;
 
 const App = () => (
   <Routes>

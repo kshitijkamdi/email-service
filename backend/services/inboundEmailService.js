@@ -1,6 +1,6 @@
 import sanitizeHtml from 'sanitize-html';
 import Email from '../models/Email.js';
-import User from '../models/User.js';
+import { findOwnerByAddress, listOwnedEmailAddresses } from './emailAddressService.js';
 import { listReceivedEmails, retrieveReceivedEmail } from './resendService.js';
 
 const EMAIL_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
@@ -45,8 +45,8 @@ export const storeReceivedEmail = async ({ data, onlyTo }) => {
   const created = [];
 
   for (const recipient of recipients) {
-    const user = await User.findOne({ email: recipient });
-    if (!user) {
+    const { owner } = await findOwnerByAddress(recipient);
+    if (!owner) {
       continue;
     }
 
@@ -75,17 +75,21 @@ export const storeReceivedEmail = async ({ data, onlyTo }) => {
   return { stored: created.length, ids: created };
 };
 
-export const syncReceivedEmailsForUser = async ({ user, limit = 100 }) => {
-  const mailbox = String(user.email || '').toLowerCase();
+export const syncReceivedEmailsForUser = async ({ user, onlyTo, limit = 100 }) => {
+  const ownedAddresses = onlyTo
+    ? [String(onlyTo).toLowerCase()]
+    : (await listOwnedEmailAddresses(user)).map((address) => address.email);
   const list = await listReceivedEmails({ limit });
   const messages = Array.isArray(list?.data) ? list.data : [];
   let stored = 0;
   const ids = [];
 
   for (const message of messages) {
-    const result = await storeReceivedEmail({ data: message, onlyTo: mailbox });
-    stored += result.stored;
-    ids.push(...result.ids);
+    for (const mailbox of ownedAddresses) {
+      const result = await storeReceivedEmail({ data: message, onlyTo: mailbox });
+      stored += result.stored;
+      ids.push(...result.ids);
+    }
   }
 
   return {
@@ -94,4 +98,3 @@ export const syncReceivedEmailsForUser = async ({ user, limit = 100 }) => {
     ids
   };
 };
-

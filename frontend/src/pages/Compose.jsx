@@ -1,15 +1,21 @@
 import { Send } from 'lucide-react';
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import AddressSelect from '../components/AddressSelect.jsx';
+import BackButton from '../components/BackButton.jsx';
 import MobileNav from '../components/MobileNav.jsx';
 import PageHeader from '../components/PageHeader.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 import api from '../services/api.js';
 
 const Compose = () => {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const defaults = location.state || {};
+  const addresses = user?.addresses?.length ? user.addresses : [{ email: user?.email }];
   const [form, setForm] = useState({
+    from: defaults.from || localStorage.getItem('mini-mail-selected-address') || user?.email || '',
     to: defaults.to || '',
     subject: defaults.subject || '',
     body: defaults.body || '',
@@ -35,10 +41,11 @@ const Compose = () => {
 
   return (
     <div className="min-h-screen pb-16 md:pb-0">
-      <PageHeader title="Compose" />
+      <PageHeader title="Compose" actions={<BackButton />} />
       <form onSubmit={handleSubmit} className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
         <div className="rounded-md bg-white shadow-sm ring-1 ring-line">
           <div className="space-y-4 p-4 sm:p-6">
+            <AddressSelect addresses={addresses} value={form.from} onChange={(from) => setForm({ ...form, from })} label="From" />
             <input
               type="text"
               value={form.to}

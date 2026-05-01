@@ -4,9 +4,12 @@ import EmailList from '../components/EmailList.jsx';
 import MobileNav from '../components/MobileNav.jsx';
 import PageHeader from '../components/PageHeader.jsx';
 import Pagination from '../components/Pagination.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 import api from '../services/api.js';
 
 const MailboxPage = ({ title, endpoint, mode }) => {
+  const { user } = useAuth();
+  const addresses = user?.addresses?.length ? user.addresses : [{ email: user?.email }];
   const [emails, setEmails] = useState([]);
   const [pagination, setPagination] = useState(null);
   const [page, setPage] = useState(1);
@@ -16,15 +19,26 @@ const MailboxPage = ({ title, endpoint, mode }) => {
   const [syncing, setSyncing] = useState(false);
   const [syncNotice, setSyncNotice] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [selectedAddress, setSelectedAddress] = useState(() => localStorage.getItem('mini-mail-selected-address') || user?.email || '');
 
   useEffect(() => {
+    if (!addresses.some((address) => address.email === selectedAddress)) {
+      setSelectedAddress(addresses[0]?.email || '');
+    }
+  }, [addresses, selectedAddress]);
+
+  useEffect(() => {
+    if (!selectedAddress) {
+      return undefined;
+    }
+
     const timer = setTimeout(async () => {
       setLoading(true);
       setError('');
 
       try {
         const { data } = await api.get(endpoint, {
-          params: { page, limit: 20, q: search || undefined }
+          params: { page, limit: 20, q: search || undefined, address: selectedAddress }
         });
         setEmails(data.emails);
         setPagination(data.pagination);
@@ -36,7 +50,7 @@ const MailboxPage = ({ title, endpoint, mode }) => {
     }, 250);
 
     return () => clearTimeout(timer);
-  }, [endpoint, page, search, refreshKey]);
+  }, [endpoint, page, search, refreshKey, selectedAddress]);
 
   const handleSearchChange = (value) => {
     setSearch(value);
@@ -49,7 +63,7 @@ const MailboxPage = ({ title, endpoint, mode }) => {
     setSyncNotice('');
 
     try {
-      const { data } = await api.post('/email/sync-received');
+      const { data } = await api.post('/email/sync-received', { address: selectedAddress });
       setSyncNotice(data.stored ? `${data.stored} new received email${data.stored === 1 ? '' : 's'} synced` : 'No new received emails found');
       setRefreshKey((current) => current + 1);
     } catch (err) {
@@ -57,6 +71,12 @@ const MailboxPage = ({ title, endpoint, mode }) => {
     } finally {
       setSyncing(false);
     }
+  };
+
+  const handleAddressChange = (email) => {
+    localStorage.setItem('mini-mail-selected-address', email);
+    setSelectedAddress(email);
+    setPage(1);
   };
 
   const syncAction =
@@ -74,7 +94,19 @@ const MailboxPage = ({ title, endpoint, mode }) => {
 
   return (
     <div className="min-h-screen pb-16 md:pb-0">
-      <PageHeader title={title} count={pagination?.total} search={search} onSearchChange={handleSearchChange} actions={syncAction} />
+      <PageHeader
+        title={title}
+        count={pagination?.total}
+        search={search}
+        onSearchChange={handleSearchChange}
+        actions={syncAction}
+        addressSwitcher={{
+          addresses,
+          value: selectedAddress,
+          onChange: handleAddressChange,
+          label: `Switch ${title.toLowerCase()} email ID`
+        }}
+      />
       {error ? <div className="m-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700 sm:m-6">{error}</div> : null}
       {syncNotice ? <div className="m-4 rounded-md bg-blue-50 px-4 py-3 text-sm text-accent sm:m-6">{syncNotice}</div> : null}
       {loading ? (

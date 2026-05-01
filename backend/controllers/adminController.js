@@ -1,4 +1,5 @@
 import Email from '../models/Email.js';
+import EmailAddress from '../models/EmailAddress.js';
 import User from '../models/User.js';
 import { isAdminUser } from '../utils/admin.js';
 
@@ -50,9 +51,11 @@ export const deleteUser = async (req, res, next) => {
       return res.status(404).json({ message: 'Mailbox not found' });
     }
 
-    const email = user.email;
+    const ownedAddresses = await EmailAddress.find({ owner: user._id }).select('email');
+    const emails = [...new Set([user.email, ...ownedAddresses.map((address) => address.email)])];
     const [messages] = await Promise.all([
-      Email.deleteMany({ $or: [{ to: email }, { from: email }] }),
+      Email.deleteMany({ $or: [{ to: { $in: emails } }, { from: { $in: emails } }] }),
+      EmailAddress.deleteMany({ owner: user._id }),
       User.deleteOne({ _id: user._id })
     ]);
 
@@ -60,7 +63,7 @@ export const deleteUser = async (req, res, next) => {
       message: 'Mailbox deleted',
       deleted: {
         id: user._id,
-        email,
+        email: user.email,
         messages: messages.deletedCount
       }
     });
@@ -68,4 +71,3 @@ export const deleteUser = async (req, res, next) => {
     next(error);
   }
 };
-

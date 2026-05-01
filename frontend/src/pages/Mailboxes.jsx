@@ -1,5 +1,6 @@
 import { ShieldCheck, Trash2, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import BackButton from '../components/BackButton.jsx';
 import MobileNav from '../components/MobileNav.jsx';
 import PageHeader from '../components/PageHeader.jsx';
 import Pagination from '../components/Pagination.jsx';
@@ -70,7 +71,7 @@ const Mailboxes = () => {
 
   return (
     <div className="min-h-screen pb-16 md:pb-0">
-      <PageHeader title="Mailboxes" count={pagination?.total} search={search} onSearchChange={handleSearchChange} />
+      <PageHeader title="Mailboxes" count={pagination?.total} search={search} onSearchChange={handleSearchChange} actions={<BackButton fallback="/settings" />} />
 
       {error ? <div className="m-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700 sm:m-6">{error}</div> : null}
 
@@ -149,4 +150,3 @@ const Mailboxes = () => {
 };
 
 export default Mailboxes;
-

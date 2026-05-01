@@ -9,6 +9,7 @@ import connectDB from './config/db.js';
 import adminRoutes from './routes/adminRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import emailRoutes from './routes/emailRoutes.js';
+import emailAddressRoutes from './routes/emailAddressRoutes.js';
 import webhookRoutes from './routes/webhookRoutes.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 
@@ -53,6 +54,7 @@ const authLimiter = rateLimit({
 });
 
 app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/email-addresses', apiLimiter, emailAddressRoutes);
 app.use('/api/email', apiLimiter, emailRoutes);
 app.use('/api/admin', apiLimiter, adminRoutes);
 

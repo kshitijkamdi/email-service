@@ -1,6 +1,8 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import EmailAddress from '../models/EmailAddress.js';
 import User from '../models/User.js';
+import { ensurePrimaryEmailAddress, listOwnedEmailAddresses } from '../services/emailAddressService.js';
 import { isAdminUser } from '../utils/admin.js';
 
 const cookieOptions = () => ({
@@ -15,12 +17,22 @@ const signToken = (userId) =>
     expiresIn: process.env.JWT_EXPIRES_IN || '7d'
   });
 
-const userPayload = async (user) => ({
-  id: user._id,
-  email: user.email,
-  createdAt: user.createdAt,
-  isAdmin: await isAdminUser(user)
-});
+const userPayload = async (user) => {
+  const addresses = await listOwnedEmailAddresses(user);
+
+  return {
+    id: user._id,
+    email: user.email,
+    createdAt: user.createdAt,
+    isAdmin: await isAdminUser(user),
+    addresses: addresses.map((address) => ({
+      id: address._id,
+      email: address.email,
+      isPrimary: address.isPrimary,
+      createdAt: address.createdAt
+    }))
+  };
+};
 
 const sendAuthResponse = async (res, statusCode, user) => {
   const token = signToken(user._id);
@@ -47,13 +59,15 @@ export const register = async (req, res, next) => {
       });
     }
 
+    const existingAddress = await EmailAddress.findOne({ email });
     const existingUser = await User.findOne({ email });
-    if (existingUser) {
+    if (existingUser || existingAddress) {
       return res.status(409).json({ message: 'Email address is already registered' });
     }
 
     const password = await bcrypt.hash(req.body.password, 12);
     const user = await User.create({ email, password });
+    await ensurePrimaryEmailAddress(user);
 
     await sendAuthResponse(res, 201, user);
   } catch (error) {

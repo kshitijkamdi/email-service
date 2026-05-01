@@ -50,7 +50,7 @@ const EmailDetail = () => {
 
   return (
     <div className="min-h-screen pb-16 md:pb-0">
-      <PageHeader title="Message" />
+      <PageHeader title="Message" showAccountMenu={false} />
       <div className="px-4 py-6 sm:px-6">
         <div className="mx-auto max-w-5xl rounded-md bg-white shadow-sm ring-1 ring-line">
           <div className="flex items-center justify-between border-b border-line px-4 py-3 sm:px-6">

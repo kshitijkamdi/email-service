@@ -1,6 +1,7 @@
 import sanitizeHtml from 'sanitize-html';
 import Email from '../models/Email.js';
 import { syncReceivedEmailsForUser } from '../services/inboundEmailService.js';
+import { assertOwnedAddress, listOwnedEmailAddresses } from '../services/emailAddressService.js';
 import { sendEmail as sendViaResend } from '../services/resendService.js';
 
 const sanitizeBody = (html) =>
@@ -30,10 +31,9 @@ const listEmails = async ({ req, res, type }) => {
   const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
   const skip = (page - 1) * limit;
   const q = String(req.query.q || '').trim();
-  const query =
-    type === 'inbox'
-      ? { type, to: req.user.email }
-      : { type, from: req.user.email };
+  const requestedAddress = req.query.address || req.body?.address || req.user.email;
+  const selectedAddress = await assertOwnedAddress(req.user, requestedAddress);
+  const query = type === 'inbox' ? { type, to: selectedAddress } : { type, from: selectedAddress };
 
   if (q) {
     query.$text = { $search: q };
@@ -46,6 +46,7 @@ const listEmails = async ({ req, res, type }) => {
 
   res.status(200).json({
     emails,
+    address: selectedAddress,
     pagination: {
       page,
       limit,
@@ -58,11 +59,12 @@ const listEmails = async ({ req, res, type }) => {
 export const sendEmail = async (req, res, next) => {
   try {
     const recipients = parseRecipients(req.body.to);
+    const from = await assertOwnedAddress(req.user, req.body.from || req.user.email);
     const subject = String(req.body.subject || '').trim();
     const html = sanitizeBody(req.body.body || req.body.html);
 
     const delivery = await sendViaResend({
-      from: req.user.email,
+      from,
       to: recipients,
       subject,
       html,
@@ -70,7 +72,7 @@ export const sendEmail = async (req, res, next) => {
     });
 
     const email = await Email.create({
-      from: req.user.email,
+      from,
       to: recipients.join(', '),
       subject,
       body: html,
@@ -90,7 +92,8 @@ export const getInbox = (req, res, next) => {
 
 export const syncReceived = async (req, res, next) => {
   try {
-    const result = await syncReceivedEmailsForUser({ user: req.user });
+    const selectedAddress = req.body.address ? await assertOwnedAddress(req.user, req.body.address) : null;
+    const result = await syncReceivedEmailsForUser({ user: req.user, onlyTo: selectedAddress });
     res.status(200).json(result);
   } catch (error) {
     next(error);
@@ -103,11 +106,13 @@ export const getSent = (req, res, next) => {
 
 export const getEmailById = async (req, res, next) => {
   try {
+    const addresses = await listOwnedEmailAddresses(req.user);
+    const ownedEmails = addresses.map((address) => address.email);
     const email = await Email.findOne({
       _id: req.params.id,
       $or: [
-        { type: 'inbox', to: req.user.email },
-        { type: 'sent', from: req.user.email }
+        { type: 'inbox', to: { $in: ownedEmails } },
+        { type: 'sent', from: { $in: ownedEmails } }
       ]
     });
 

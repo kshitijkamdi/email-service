@@ -28,6 +28,13 @@ export const AuthProvider = ({ children }) => {
     loadMe();
   }, []);
 
+  const refreshUser = async () => {
+    const { data } = await api.get('/auth/me');
+    setUser(data.user);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data.user));
+    return data.user;
+  };
+
   const login = async (payload) => {
     const { data } = await api.post('/auth/login', payload);
     setUser(data.user);
@@ -52,7 +59,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const value = useMemo(
-    () => ({ user, loading, login, register, logout, isAuthenticated: Boolean(user) }),
+    () => ({ user, loading, login, register, logout, refreshUser, isAuthenticated: Boolean(user) }),
     [user, loading]
   );
 
