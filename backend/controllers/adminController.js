@@ -13,12 +13,12 @@ export const listUsers = async (req, res, next) => {
     const q = normalizeSearch(req.query.q);
     const filter = q ? { email: { $regex: q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' } } : {};
 
-    const allUsers = await User.find({}).select('_id email createdAt');
+    const allUsers = await User.find({}).select('_id email createdAt approvalStatus');
     await Promise.all(allUsers.map((user) => ensurePrimaryEmailAddress(user)));
 
     const [addresses, total] = await Promise.all([
       EmailAddress.find(filter)
-        .populate('owner', '_id email createdAt')
+        .populate('owner', '_id email createdAt approvalStatus approvedAt')
         .sort({ createdAt: 1, _id: 1 })
         .skip((page - 1) * limit)
         .limit(limit),
@@ -33,6 +33,8 @@ export const listUsers = async (req, res, next) => {
         email: address.email,
         createdAt: address.createdAt,
         isAdmin: adminChecks[index],
+        approvalStatus: address.owner?.approvalStatus || 'approved',
+        approvedAt: address.owner?.approvedAt,
         isPrimary: address.isPrimary,
         ownerEmail: address.owner?.email,
         ownerId: address.owner?._id,
@@ -43,6 +45,33 @@ export const listUsers = async (req, res, next) => {
         limit,
         total,
         pages: Math.ceil(total / limit) || 1
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const approveUser = async (req, res, next) => {
+  try {
+    const address = await EmailAddress.findById(req.params.id).populate('owner', '_id email approvalStatus approvedAt');
+
+    if (!address?.owner) {
+      return res.status(404).json({ message: 'Mailbox owner not found' });
+    }
+
+    address.owner.approvalStatus = 'approved';
+    address.owner.approvedAt = new Date();
+    address.owner.approvedBy = req.user._id;
+    await address.owner.save();
+
+    res.status(200).json({
+      message: `${address.owner.email} approved`,
+      user: {
+        id: address.owner._id,
+        email: address.owner.email,
+        approvalStatus: address.owner.approvalStatus,
+        approvedAt: address.owner.approvedAt
       }
     });
   } catch (error) {

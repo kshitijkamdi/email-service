@@ -25,6 +25,8 @@ const userPayload = async (user) => {
     email: user.email,
     createdAt: user.createdAt,
     isAdmin: await isAdminUser(user),
+    approvalStatus: user.approvalStatus || 'approved',
+    approvedAt: user.approvedAt,
     addresses: addresses.map((address) => ({
       id: address._id,
       email: address.email,
@@ -38,7 +40,8 @@ const sendAuthResponse = async (res, statusCode, user) => {
   const token = signToken(user._id);
   res.cookie('token', token, cookieOptions());
   res.status(statusCode).json({
-    user: await userPayload(user)
+    user: await userPayload(user),
+    token
   });
 };
 
@@ -67,6 +70,14 @@ export const register = async (req, res, next) => {
 
     const password = await bcrypt.hash(req.body.password, 12);
     const user = await User.create({ email, password });
+
+    if (await isAdminUser(user)) {
+      user.approvalStatus = 'approved';
+      user.approvedAt = new Date();
+      user.approvedBy = user._id;
+      await user.save();
+    }
+
     await ensurePrimaryEmailAddress(user);
 
     await sendAuthResponse(res, 201, user);
@@ -78,9 +89,9 @@ export const register = async (req, res, next) => {
 export const login = async (req, res, next) => {
   try {
     const email = normalizeEmail(req.body.email);
-    const directUser = await User.findOne({ email }).select('+password email createdAt');
+    const directUser = await User.findOne({ email }).select('+password email createdAt approvalStatus approvedAt approvedBy');
     const address = directUser ? null : await EmailAddress.findOne({ email });
-    const user = directUser || (address ? await User.findById(address.owner).select('+password email createdAt') : null);
+    const user = directUser || (address ? await User.findById(address.owner).select('+password email createdAt approvalStatus approvedAt approvedBy') : null);
 
     if (!user) {
       return res.status(401).json({ message: 'Invalid email or password' });

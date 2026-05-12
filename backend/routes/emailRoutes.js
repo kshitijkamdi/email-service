@@ -1,12 +1,12 @@
 import express from 'express';
 import { body, param, query } from 'express-validator';
 import { getEmailById, getInbox, getSent, sendEmail, syncReceived } from '../controllers/emailController.js';
-import { protect } from '../middleware/auth.js';
+import { protect, requireApprovedMailbox } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 
 const router = express.Router();
 
-router.use(protect);
+router.use(protect, requireApprovedMailbox);
 
 router.post(
   '/send',

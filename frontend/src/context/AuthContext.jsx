@@ -3,6 +3,7 @@ import api from '../services/api.js';
 
 const AuthContext = createContext(null);
 const STORAGE_KEY = 'mini-mail-user';
+const TOKEN_KEY = 'mini-mail-token';
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
@@ -39,6 +40,9 @@ export const AuthProvider = ({ children }) => {
     const { data } = await api.post('/auth/login', payload);
     setUser(data.user);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data.user));
+    if (data.token) {
+      localStorage.setItem(TOKEN_KEY, data.token);
+    }
     return data.user;
   };
 
@@ -46,6 +50,9 @@ export const AuthProvider = ({ children }) => {
     const { data } = await api.post('/auth/register', payload);
     setUser(data.user);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data.user));
+    if (data.token) {
+      localStorage.setItem(TOKEN_KEY, data.token);
+    }
     return data.user;
   };
 
@@ -55,6 +62,7 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setUser(null);
       localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(TOKEN_KEY);
     }
   };
 

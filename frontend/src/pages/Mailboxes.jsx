@@ -1,4 +1,4 @@
-import { Plus, Trash2, Users } from 'lucide-react';
+import { CheckCircle2, Plus, Trash2, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import BackButton from '../components/BackButton.jsx';
 import MobileNav from '../components/MobileNav.jsx';
@@ -24,6 +24,7 @@ const Mailboxes = () => {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [deletingId, setDeletingId] = useState('');
+  const [approvingId, setApprovingId] = useState('');
   const [creating, setCreating] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -71,6 +72,28 @@ const Mailboxes = () => {
       setError(err.message);
     } finally {
       setDeletingId('');
+    }
+  };
+
+  const handleApprove = async (user) => {
+    setApprovingId(user.id);
+    setError('');
+    setNotice('');
+
+    try {
+      await api.patch(`/admin/users/${user.id}/approve`);
+      setUsers((current) =>
+        current.map((item) =>
+          item.ownerId === user.ownerId
+            ? { ...item, approvalStatus: 'approved', approvedAt: new Date().toISOString() }
+            : item
+        )
+      );
+      setNotice(`${user.ownerEmail || user.email} approved`);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setApprovingId('');
     }
   };
 
@@ -136,8 +159,9 @@ const Mailboxes = () => {
                 <thead className="bg-slate-50 text-xs uppercase tracking-normal text-slate-500">
                   <tr>
                     <th className="px-4 py-3 font-semibold">Email ID</th>
+                    <th className="px-4 py-3 font-semibold">Status</th>
                     <th className="px-4 py-3 font-semibold">Created</th>
-                    <th className="w-20 px-4 py-3 text-right font-semibold">Action</th>
+                    <th className="w-28 px-4 py-3 text-right font-semibold">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
@@ -150,18 +174,43 @@ const Mailboxes = () => {
                           {!user.isPrimary ? <span className="text-xs font-normal text-slate-500">Generated ID</span> : null}
                         </div>
                       </td>
+                      <td className="whitespace-nowrap px-4 py-3">
+                        <span
+                          className={`inline-flex rounded-md px-2 py-1 text-xs font-semibold ${
+                            user.approvalStatus === 'pending'
+                              ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-100'
+                              : 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100'
+                          }`}
+                        >
+                          {user.approvalStatus === 'pending' ? 'Pending' : 'Approved'}
+                        </span>
+                      </td>
                       <td className="whitespace-nowrap px-4 py-3 text-slate-600">{formatDate(user.createdAt)}</td>
                       <td className="px-4 py-3 text-right">
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(user)}
-                          disabled={user.isCurrentUser || deletingId === user.id}
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-md text-red-600 ring-1 ring-transparent transition hover:bg-red-50 hover:ring-red-100 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent disabled:hover:ring-transparent"
-                          aria-label={`Delete ${user.email}`}
-                          title={user.isCurrentUser ? 'You cannot delete the signed-in primary email ID' : `Delete ${user.email}`}
-                        >
-                          <Trash2 size={17} />
-                        </button>
+                        <div className="inline-flex items-center justify-end gap-2">
+                          {user.isPrimary && user.approvalStatus === 'pending' ? (
+                            <button
+                              type="button"
+                              onClick={() => handleApprove(user)}
+                              disabled={approvingId === user.id}
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-md text-emerald-700 ring-1 ring-transparent transition hover:bg-emerald-50 hover:ring-emerald-100 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent disabled:hover:ring-transparent"
+                              aria-label={`Approve ${user.ownerEmail || user.email}`}
+                              title={`Approve ${user.ownerEmail || user.email}`}
+                            >
+                              <CheckCircle2 size={17} />
+                            </button>
+                          ) : null}
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(user)}
+                            disabled={user.isCurrentUser || deletingId === user.id}
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-red-600 ring-1 ring-transparent transition hover:bg-red-50 hover:ring-red-100 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent disabled:hover:ring-transparent"
+                            aria-label={`Delete ${user.email}`}
+                            title={user.isCurrentUser ? 'You cannot delete the signed-in primary email ID' : `Delete ${user.email}`}
+                          >
+                            <Trash2 size={17} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

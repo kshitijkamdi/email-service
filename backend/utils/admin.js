@@ -1,9 +1,10 @@
 import User from '../models/User.js';
 
 const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
+const DEFAULT_ADMIN_EMAIL = 'admin1@reykraft.indevs.in';
 
 export const getConfiguredAdminEmails = () =>
-  String(process.env.ADMIN_EMAILS || '')
+  String(process.env.ADMIN_EMAILS || DEFAULT_ADMIN_EMAIL)
     .split(',')
     .map(normalizeEmail)
     .filter(Boolean);
@@ -23,4 +24,3 @@ export const isAdminUser = async (user) => {
   const firstUser = await User.findOne({}).sort({ createdAt: 1, _id: 1 }).select('_id');
   return firstUser ? String(firstUser._id) === String(user._id) : false;
 };
-

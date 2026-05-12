@@ -13,6 +13,20 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       select: false
+    },
+    approvalStatus: {
+      type: String,
+      enum: ['pending', 'approved'],
+      default: 'pending'
+    },
+    approvedAt: {
+      type: Date,
+      default: null
+    },
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
     }
   },
   {
